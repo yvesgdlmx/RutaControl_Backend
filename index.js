@@ -36,11 +36,32 @@ const app = express()
 app.use(express.json())
 app.use('/uploads', express.static('uploads'))
 
+function obtenerOrigenesPermitidos() {
+  const variables = [
+    process.env.FRONTEND_URL,
+    process.env.CORS_ORIGINS
+  ]
+
+  return variables
+    .flatMap((valor = '') => valor.split(','))
+    .map((valor) => valor.trim())
+    .filter(Boolean)
+}
+
+const origenesPermitidos = obtenerOrigenesPermitidos()
+const esOrigenLocal = (origin = '') => /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.|10\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(origin)
+const validarOrigenCors = (origin, callback) => {
+  if (!origin) return callback(null, true)
+
+  if (!origenesPermitidos.length || origenesPermitidos.includes(origin) || esOrigenLocal(origin)) {
+    return callback(null, true)
+  }
+
+  return callback(new Error(`Origen no permitido por CORS: ${origin}`))
+}
+
 const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true)
-    callback(null, true)
-  },
+  origin: validarOrigenCors,
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin'],
   exposedHeaders: ['Authorization'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -95,7 +116,7 @@ const servidor = http.createServer(app)
 // Esto permite que ngrok exponga backend, frontend y sockets con un solo puerto.
 const io = new Server(servidor, {
   cors: {
-    origin: true,
+    origin: validarOrigenCors,
     methods: ['GET', 'POST', 'PUT', 'DELETE']
   }
 })
