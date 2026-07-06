@@ -50,10 +50,16 @@ function obtenerOrigenesPermitidos() {
 
 const origenesPermitidos = obtenerOrigenesPermitidos()
 const esOrigenLocal = (origin = '') => /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.|10\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(origin)
+const esOrigenRailway = (origin = '') => /^https:\/\/[a-z0-9-]+\.up\.railway\.app$/i.test(origin)
 const validarOrigenCors = (origin, callback) => {
   if (!origin) return callback(null, true)
 
-  if (!origenesPermitidos.length || origenesPermitidos.includes(origin) || esOrigenLocal(origin)) {
+  if (
+    !origenesPermitidos.length
+    || origenesPermitidos.includes(origin)
+    || esOrigenLocal(origin)
+    || esOrigenRailway(origin)
+  ) {
     return callback(null, true)
   }
 
@@ -69,6 +75,7 @@ const corsOptions = {
 }
 
 app.use(cors(corsOptions))
+app.options(/.*/, cors(corsOptions))
 
 try {
   await conectarBD()
