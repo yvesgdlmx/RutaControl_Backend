@@ -33,49 +33,36 @@ const __dirname = path.dirname(__filename)
 const frontendDistPath = path.resolve(__dirname, '../frontend/dist')
 
 const app = express()
-app.use(express.json())
-app.use('/uploads', express.static('uploads'))
-
-function obtenerOrigenesPermitidos() {
-  const variables = [
-    process.env.FRONTEND_URL,
-    process.env.CORS_ORIGINS
-  ]
-
-  return variables
-    .flatMap((valor = '') => valor.split(','))
-    .map((valor) => valor.trim())
-    .filter(Boolean)
-}
-
-const origenesPermitidos = obtenerOrigenesPermitidos()
-const esOrigenLocal = (origin = '') => /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.|10\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(origin)
-const esOrigenRailway = (origin = '') => /^https:\/\/[a-z0-9-]+\.up\.railway\.app$/i.test(origin)
-const validarOrigenCors = (origin, callback) => {
-  if (!origin) return callback(null, true)
-
-  if (
-    !origenesPermitidos.length
-    || origenesPermitidos.includes(origin)
-    || esOrigenLocal(origin)
-    || esOrigenRailway(origin)
-  ) {
-    return callback(null, true)
-  }
-
-  return callback(new Error(`Origen no permitido por CORS: ${origin}`))
-}
 
 const corsOptions = {
-  origin: validarOrigenCors,
+  origin: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin'],
   exposedHeaders: ['Authorization'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   optionsSuccessStatus: 200
 }
 
+app.use((req, res, next) => {
+  const origin = req.headers.origin
+
+  if (origin) {
+    res.header('Access-Control-Allow-Origin', origin)
+    res.header('Vary', 'Origin')
+  }
+
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,Accept,Origin')
+  res.header('Access-Control-Expose-Headers', 'Authorization')
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204)
+  }
+
+  return next()
+})
 app.use(cors(corsOptions))
-app.options(/.*/, cors(corsOptions))
+app.use(express.json())
+app.use('/uploads', express.static('uploads'))
 
 try {
   await conectarBD()
@@ -123,7 +110,7 @@ const servidor = http.createServer(app)
 // Esto permite que ngrok exponga backend, frontend y sockets con un solo puerto.
 const io = new Server(servidor, {
   cors: {
-    origin: validarOrigenCors,
+    origin: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE']
   }
 })
