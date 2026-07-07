@@ -2,6 +2,7 @@ import express from 'express'
 import dotenv from 'dotenv'
 import cors from 'cors'
 import http from 'node:http'
+import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -31,6 +32,8 @@ dotenv.config()
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const frontendDistPath = path.resolve(__dirname, '../frontend/dist')
+const frontendIndexPath = path.join(frontendDistPath, 'index.html')
+const servirFrontend = fs.existsSync(frontendIndexPath)
 
 const app = express()
 
@@ -97,11 +100,15 @@ app.use('/api/ruteo', protegerRuta, ruteoRoutes)
 app.use('/api/usuarios', protegerRuta, usuarioRoutes)
 app.use('/api/configuracion', protegerRuta, configuracionRoutes)
 
-app.use(express.static(frontendDistPath))
+if (servirFrontend) {
+  app.use(express.static(frontendDistPath))
 
-app.get(/.*/, (req, res) => {
-  res.sendFile(path.join(frontendDistPath, 'index.html'))
-})
+  app.get(/.*/, (req, res) => {
+    res.sendFile(frontendIndexPath)
+  })
+} else {
+  console.log('Frontend dist no encontrado; el backend correra solo como API.')
+}
 
 const PORT = process.env.PORT || 4000
 const servidor = http.createServer(app)
